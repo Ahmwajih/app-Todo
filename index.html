@@ -1,34 +1,105 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Todo App</title>
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">    <style>
-        .todo-item {
-            margin-bottom: 10px;
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    </head>
+    <style>
+        .todo-done {
+            text-decoration: line-through;
+            color: #6c757d; /* Bootstrap's text-muted color */
         }
-        .container {
-            max-width: 600px;
-            margin-top: 50px;
+        body {
+            max-width: 100vw;
+            height: 100vh;
+            background: rgb(58,147,180);
+            background: linear-gradient(330deg, rgba(58,147,180,0.6363795518207283) 0%, rgba(48,155,101,0.4318977591036415) 27%);
         }
     </style>
-</head>
 <body>
-    <div class="container">
-        <h1 class="text-center mb-4">Todo App</h1>
-        <ul class="list-group mb-3">
-            <li class="list-group-item todo-item">
-                <input class="form-check-input me-2" type="checkbox">
-                <label>Task 1</label>
-            </li>
-        </ul>
-        <div class="add-todo mb-3">
-            <input type="text" class="form-control mb-2" placeholder="Add a new task">
-            <button class="btn btn-primary btn-block">Add</button>
+    <div class="container mt-5 d-flex flex-column justify-content-center">
+        <h1 class="text-center my-3">Todo App</h1>
+        <div class="add-todo mb-3 w-100 d-flex justify-content-center">
+            <div class="input-group mb-2 w-75">
+                <input type="text" id="newTodoInput" class="form-control" placeholder="Add a new task">
+                <button class="btn btn-primary ml-2 " onclick="addTodo()">Add</button>
+            </div>
         </div>
+        <ul id="todoList" class="list-group mb-3 w-75">
+            <!-- Todo items will be added here dynamically -->
+        </ul>
     </div>
-    <!-- Bootstrap JS Bundle with Popper -->
+    <script>
+        function getTodo () {
+            // Mock data for testing purposes
+            const mockData = [
+                { text: 'Task 1', done: false },
+                { text: 'Task 2', done: true },
+                { text: 'Task 3', done: false }
+            ];
+        
+            const todoList = document.getElementById('todoList');
+            mockData.forEach(todo => {
+                const todoItem = document.createElement('li');
+                todoItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+                todoItem.innerHTML = `
+                    <label class="form-check-label">
+                        <input type="checkbox" class="form-check-input me-2" onchange="toggleDone(this)">
+                        ${todo.text}
+                    </label>
+                    <button class="btn btn-danger" onclick="deleteTodo(this)">Delete</button>
+                `;
+                if (todo.done) {
+                    todoItem.classList.add('todo-done');
+                    todoItem.querySelector('input').checked = true;
+                }
+                todoList.appendChild(todoItem);
+            });
+        }
+        getTodo();
+
+        function addTodo() {
+            fetch('http://localhost:6000/') // Fetch data from the server
+            .then (response => response.json())
+            .then (data => {
+                const todoList = document.getElementById('todoList');
+                const newTodoInput = document.getElementById('newTodoInput');
+                const newTodo = newTodoInput.value;
+                if (newTodo) {
+                    const todoItem = document.createElement('li');
+                    todoItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+                    todoItem.innerHTML = `
+                        <label class="form-check-label">
+                            <input type="checkbox" class="form-check-input me-2" onchange="toggleDone(this)">
+                            ${newTodo}  
+                        </label>
+                        <button class="btn btn-danger" onclick="deleteTodo(this)">Delete</button>
+                    `;
+                    todoList.appendChild(todoItem);
+                    newTodoInput.value = '';
+                }
+            })
+        }
+
+
+        function toggleDone(checkbox) {
+            const todoItem = checkbox.parentElement;
+            if (checkbox.checked) {
+                todoItem.classList.add('todo-done');
+            } else {
+                todoItem.classList.remove('todo-done');
+            }
+        }
+
+        function deleteTodo(button) {
+            const todoItem = button.parentElement;
+            todoItem.remove();
+        }
+    </script>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script></body>
+</body>
 </html>
