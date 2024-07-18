@@ -1,28 +1,30 @@
 const express = require("express");
 const app = express();
-const port = 6000;
+const port = 8000;
 
 const cors = require("cors");
 app.use(cors());
+
+
+
 
 const { Sequelize, DataTypes } = require("sequelize");
 
 const sequelize = new Sequelize("sqlite:./db.sqlite3");
 
-const todo = sequelize.define("todo", {
+const Todo = sequelize.define("Todo", {
   title: {
     type: DataTypes.STRING,
     allowNull: false,
   },
   description: {
     type: DataTypes.STRING,
-    allowNull: false,
+    allowNull: true,
   },
   create: {
     type: DataTypes.DATE,
     allowNull: false,
     defaultValue: new Date(),
-
   },
   done: {
     type: DataTypes.BOOLEAN,
@@ -45,6 +47,10 @@ sequelize
   });
 
 app.use(express.json());
+app.use((req, res, next) => {
+    console.log(`${req.method} ${req.url} ${new Date()}`);
+    next();
+});
 
 // Catch async errors to error handling middleware:
 require("express-async-errors");
@@ -52,9 +58,8 @@ require("express-async-errors");
 const router = express.Router();
 
 router.get("/", async (req, res) => {
-  const todos = await todo.findAll();
-  res.json(todos);
-  res.status(200).send({
+  const todos = await Todo.findAndCountAll();
+  res.status(200).json({
     error: false,
     data: todos,
   });
@@ -62,17 +67,15 @@ router.get("/", async (req, res) => {
 
 router.post("/", async (req, res, next) => {
   const { title, description, done } = req.body;
-  if (!title || !description) {
-    const error = new Error(
-      "title, description and create fields are required"
-    );
+  if (!title) {
+    const error = new Error("title field is required");
     error.cause = "missing_fields";
     error.statusCode = 400;
     next(error);
   } else {
-    const newTodo = await todo.create({
-      title: title,
-      description: description,
+    const newTodo = await Todo.create({
+      title,
+      description,
       create: new Date(),
       done: done || false,
     });
@@ -83,12 +86,12 @@ router.post("/", async (req, res, next) => {
   }
 });
 
-router.get("/:id", async (req, res) => {
+router.get("/:id", async (req, res, next) => {
     const id = req.params.id;
-    const todoItem = await todo.findByPk(id);
+    const todoItem = await Todo.findByPk(id);
     if (!todoItem) {
       const error = new Error("todo not found");
-      error.cause = " tasks not_found";
+      error.cause = "tasks_not_found";
       error.statusCode = 404;
       next(error);
     } else {
@@ -97,32 +100,32 @@ router.get("/:id", async (req, res) => {
         data: todoItem,
       });
     }
-    });
+});
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", async (req, res, next) => {
     const id = req.params.id;
-    const { title, description, create, done } = req.body;
-    const todoItem = await todo.findByPk(id);
+    const { title, description, done } = req.body;
+    const todoItem = await Todo.findByPk(id);
     if (!todoItem) {
         const error = new Error("todo not found");
         error.cause = "not_found";
         error.statusCode = 404;
         next(error);
     } else {
-        todoItem.title = title;
-        todoItem.description = description;
+        todoItem.title = title || todoItem.title;
+        todoItem.description = description || todoItem.description;
+        todoItem.done = done !== undefined ? done : todoItem.done;
         await todoItem.save();
         res.status(200).send({
         error: false,
         data: todoItem,
         });
     }
-    });
+});
 
-
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", async (req, res, next) => {
     const id = req.params.id;
-    const todoItem = await todo.findByPk(id);
+    const todoItem = await Todo.findByPk(id);
     if (!todoItem) {
         const error = new Error("todo not found");
         error.cause = "not_found";
@@ -132,13 +135,13 @@ router.delete("/:id", async (req, res) => {
         await todoItem.destroy();
         res.status(204).send();
     }
-    });
+});
 
 app.use(router);
 
 // Error handling middleware:
-app.use((err, res) => {
-  const statusCode = res.statusCode !== 200 ? res.statusCode : 500;
+app.use((err, req, res, next) => {
+  const statusCode = err.statusCode || 500;
   res.status(statusCode).send({
     error: true,
     message: err.message,
@@ -147,5 +150,5 @@ app.use((err, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`server running on :${port}`);
+  console.log(`Server running on port ${port}`);
 });

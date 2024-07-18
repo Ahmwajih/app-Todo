@@ -1,24 +1,28 @@
-
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Todo App</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-    </head>
-    <style>
-        .todo-done {
-            text-decoration: line-through;
-            color: #6c757d; /* Bootstrap's text-muted color */
-        }
-        body {
-            max-width: 100vw;
-            height: 100vh;
-            background: rgb(58,147,180);
-            background: linear-gradient(330deg, rgba(58,147,180,0.6363795518207283) 0%, rgba(48,155,101,0.4318977591036415) 27%);
-        }
-    </style>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+</head>
+<style>
+    .todo-done {
+        text-decoration: line-through;
+        color: #6c757d;
+        /* Bootstrap's text-muted color */
+    }
+
+    body {
+        max-width: 100vw;
+        height: 100vh;
+        background: rgb(58, 147, 180);
+        background: linear-gradient(330deg, rgba(58, 147, 180, 0.6363795518207283) 0%, rgba(48, 155, 101, 0.4318977591036415) 27%);
+    }
+</style>
+
 <body>
     <div class="container mt-5 d-flex flex-column justify-content-center">
         <h1 class="text-center my-3">Todo App</h1>
@@ -28,62 +32,78 @@
                 <button class="btn btn-primary ml-2 " onclick="addTodo()">Add</button>
             </div>
         </div>
-        <ul id="todoList" class="list-group mb-3 w-75">
-            <!-- Todo items will be added here dynamically -->
+        <ul id="todoList" class="list-group mb-3 d-flex flex-column justify-content-center "></ul>
         </ul>
     </div>
     <script>
-        function getTodo () {
-            // Mock data for testing purposes
-            const mockData = [
-                { text: 'Task 1', done: false },
-                { text: 'Task 2', done: true },
-                { text: 'Task 3', done: false }
-            ];
-        
-            const todoList = document.getElementById('todoList');
-            mockData.forEach(todo => {
-                const todoItem = document.createElement('li');
-                todoItem.className = 'list-group-item d-flex justify-content-between align-items-center';
-                todoItem.innerHTML = `
-                    <label class="form-check-label">
-                        <input type="checkbox" class="form-check-input me-2" onchange="toggleDone(this)">
-                        ${todo.text}
-                    </label>
-                    <button class="btn btn-danger" onclick="deleteTodo(this)">Delete</button>
-                `;
-                if (todo.done) {
-                    todoItem.classList.add('todo-done');
-                    todoItem.querySelector('input').checked = true;
+        async function getTodos() {
+            try {
+                const response = await fetch('http://localhost:8000/');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                todoList.appendChild(todoItem);
-            });
-        }
-        getTodo();
-
-        function addTodo() {
-            fetch('http://localhost:6000/') // Fetch data from the server
-            .then (response => response.json())
-            .then (data => {
+                const data = await response.json();
+                const todos = data.data.rows;
+                console.log(todos);
                 const todoList = document.getElementById('todoList');
-                const newTodoInput = document.getElementById('newTodoInput');
-                const newTodo = newTodoInput.value;
-                if (newTodo) {
+                todoList.innerHTML = '';
+        
+                todos.forEach(todo => {
+                    const time = new Date(todo.updatedAt);
+                    const option = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                    const updatedAt = time.toLocaleDateString('en-US', option);
+        
                     const todoItem = document.createElement('li');
                     todoItem.className = 'list-group-item d-flex justify-content-between align-items-center';
                     todoItem.innerHTML = `
                         <label class="form-check-label">
-                            <input type="checkbox" class="form-check-input me-2" onchange="toggleDone(this)">
-                            ${newTodo}  
+                            <input type="checkbox" class="form-check-input me-2" ${todo.done ? 'checked' : ''} onchange="toggleDone(this)">
+                            ${todo.title}
                         </label>
-                        <button class="btn btn-danger" onclick="deleteTodo(this)">Delete</button>
+                        <p>${todo.description}</p>
+                        <p>${updatedAt}</p>
+                        <button class="btn btn-danger" onclick="deleteTodo(${todo.id}, this)">Delete</button>
+                        <button class="btn btn-primary" onclick="editTodo(${todo.id}, this)">Edit</button>
                     `;
+                    if (todo.done) {
+                        todoItem.classList.add('todo-done');
+                    }
                     todoList.appendChild(todoItem);
-                    newTodoInput.value = '';
-                }
-            })
+                });
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            }
         }
 
+        async function addTodo() {
+            const newTodoInput = document.getElementById('newTodoInput');
+            const newTodo = newTodoInput.value.trim();
+
+            if (newTodo) {
+                try {
+                    const response = await fetch('http://localhost:6000/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            title: newTodo,
+                            description: '', // Add appropriate description if needed
+                            done: false
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    newTodoInput.value = '';
+                    await getTodos(); // Refresh the list
+                } catch (error) {
+                    console.error('Error adding todo:', error);
+                }
+            }
+        }
 
         function toggleDone(checkbox) {
             const todoItem = checkbox.parentElement;
@@ -94,12 +114,27 @@
             }
         }
 
-        function deleteTodo(button) {
-            const todoItem = button.parentElement;
-            todoItem.remove();
+        async function deleteTodo(id, button) {
+            try {
+                const response = await fetch(`http://localhost:6000/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                button.parentElement.remove();
+            } catch (error) {
+                console.error('Error deleting todo:', error);
+            }
         }
+
+        getTodos();
     </script>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script></body>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"></script>
 </body>
 </html>
