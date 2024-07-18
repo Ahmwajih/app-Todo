@@ -28,7 +28,9 @@
         <h1 class="text-center my-3">Todo App</h1>
         <div class="add-todo mb-3 w-100 d-flex justify-content-center">
             <div class="input-group mb-2 w-75">
+                 <!-- Add a new task and new description -->
                 <input type="text" id="newTodoInput" class="form-control" placeholder="Add a new task">
+                <input type="text" id="newDescriptionInput" class="form-control ml-2" placeholder="Add a description">
                 <button class="btn btn-primary ml-2 " onclick="addTodo()">Add</button>
             </div>
         </div>
@@ -47,23 +49,27 @@
                 console.log(todos);
                 const todoList = document.getElementById('todoList');
                 todoList.innerHTML = '';
-        
+
                 todos.forEach(todo => {
                     const time = new Date(todo.updatedAt);
                     const option = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
                     const updatedAt = time.toLocaleDateString('en-US', option);
-        
+
                     const todoItem = document.createElement('li');
                     todoItem.className = 'list-group-item d-flex justify-content-between align-items-center';
                     todoItem.innerHTML = `
                         <label class="form-check-label">
                             <input type="checkbox" class="form-check-input me-2" ${todo.done ? 'checked' : ''} onchange="toggleDone(this)">
                             ${todo.title}
+                                                    <p>${todo.description}</p>
                         </label>
-                        <p>${todo.description}</p>
+                        <div>
                         <p>${updatedAt}</p>
-                        <button class="btn btn-danger" onclick="deleteTodo(${todo.id}, this)">Delete</button>
-                        <button class="btn btn-primary" onclick="editTodo(${todo.id}, this)">Edit</button>
+                        </div>
+                        <div>
+                            <button class="btn btn-danger" onclick="deleteTodo(${todo.id}, this)">Delete</button>
+                            <button class="btn btn-primary" onclick="editTodo(${todo.id}, this)">Edit</button>
+                        </div>
                     `;
                     if (todo.done) {
                         todoItem.classList.add('todo-done');
@@ -77,18 +83,20 @@
 
         async function addTodo() {
             const newTodoInput = document.getElementById('newTodoInput');
+            const newDescriptionInput = document.getElementById('newDescriptionInput');
+            const newDesc = newDescriptionInput.value.trim();
             const newTodo = newTodoInput.value.trim();
 
-            if (newTodo) {
+            if (newTodo && newDesc) {
                 try {
-                    const response = await fetch('http://localhost:6000/', {
+                    const response = await fetch('http://localhost:8000/', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
                             title: newTodo,
-                            description: '', // Add appropriate description if needed
+                            description: newDesc, 
                             done: false
                         })
                     });
@@ -98,7 +106,7 @@
                     }
 
                     newTodoInput.value = '';
-                    await getTodos(); // Refresh the list
+                    await getTodos(); 
                 } catch (error) {
                     console.error('Error adding todo:', error);
                 }
@@ -116,7 +124,7 @@
 
         async function deleteTodo(id, button) {
             try {
-                const response = await fetch(`http://localhost:6000/${id}`, {
+                const response = await fetch(`http://localhost:8000/${id}`, {
                     method: 'DELETE'
                 });
 
@@ -125,10 +133,38 @@
                 }
 
                 button.parentElement.remove();
+                await getTodos();
             } catch (error) {
                 console.error('Error deleting todo:', error);
             }
         }
+
+
+        async function editTodo(id, button) {
+            const newTodo = prompt('Enter new todo');
+            const newDescription = prompt('Enter new description');
+            try {
+                const response = await fetch(`http://localhost:8000/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        title: newTodo,
+                        description: newDescription
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                await getTodos();
+            } catch (error) {
+                console.error('Error updating todo:', error);
+            }
+        }
+
 
         getTodos();
     </script>
@@ -137,4 +173,5 @@
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
         crossorigin="anonymous"></script>
 </body>
+
 </html>
